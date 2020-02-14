@@ -1,0 +1,74 @@
+version: '2'
+services:
+  web:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    extra_hosts:
+      - "template.local.com:127.0.0.1"
+    expose:
+      - "9000"
+      - "3315"
+    ports:
+      - "8100:80"
+    networks:
+      template_net:
+        ipv4_address: 172.18.21.09
+    volumes:
+      - ./Rioxygen:/var/www/html/app/design/frontend/Rioxygen
+      - ~/.ssh:/home/rioxygen/.ssh
+      - ./apache_vhost:/etc/apache2/sites-available/
+    environment:
+      MAGENTO_VERSION: ${MAGENTO_VERSION}
+      PHP_XDEBUG_ENABLED: 1
+      XDEBUG_CONFIG: remote_host=172.18.21.1
+      PHP_IDE_CONFIG: "serverName=Backend"
+      SYMFONY_ENVIRONMENT: "dev"
+      SYMFONY_DEBUG: 1
+      SELENIUM_DEBUG: 1
+    links:
+      - mysql
+      - hub
+    container_name: ${PROJECT_NAME}_web
+  hub:
+    image: selenium/standalone-chrome-debug:3.141.59-radium
+    ports:
+      - "5910:5900"
+    extra_hosts:
+      - "template.local.com:172.18.21.9"
+    expose:
+      - "9515"
+      - "4444"
+    volumes:
+      - ./shm:/dev/shm
+    networks:
+      template_net:
+        ipv4_address: 172.18.21.11
+    container_name: ${PROJECT_NAME}_hub
+  mysql:
+    image: mysql:5.7
+    networks:
+      template_net:
+        ipv4_address: 172.18.21.10
+#    volumes:
+#      - ./database/data:/var/lib/mysql
+    ports:
+      - 3310:3306
+    environment:
+      - MYSQL_ROOT_PASSWORD=${DB_PASSWORD}
+      - MYSQL_DATABASE=${DB_NAME}
+      - TZ=${DB_TZ}
+    container_name: ${PROJECT_NAME}_db
+
+networks:
+  template_net:
+    driver: bridge
+    driver_opts:
+      com.docker.network.enable_ipv6: "true"
+      com.docker.network.default.forwarding: 1
+      com.docker.network.all.forwarding: 1
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.18.21.0/24
+          gateway: 172.18.21.1
